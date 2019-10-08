@@ -21,7 +21,7 @@ NumericMatrix IBSKernel(NumericMatrix z) {
     for(j = i+1; j < n; j++){
       tmp = 0;
       for(k = 0; k < p; k++){
-        df = abs(z(i, k) - z(j, k));
+        df = std::abs(z(i, k) - z(j, k));
         tmp += df;
       }
       kernel(i, j) = 1 - tmp / (2*p);

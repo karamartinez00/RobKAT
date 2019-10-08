@@ -1,56 +1,135 @@
 ---
 title: "Robust Kernel Association Testing"
-author: "Arnab Maity"
+author: "Kara Martinez"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteIndexEntry{RobKAT}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-A short description of the RobKAT package and what it does.
+## Overview
 
-Perhaps a small simulation study / code demo.
+RobKAT provides a computational tool for testing the association between SNP data and a response, while controlling for specified covariates. Standard kernel association testing procedures often assume and are derived from normally distributed errors. The robust kernel association test (RobKAT) methodology, however, accomodates any response or error distributions, including those that are skewed, heavy-tailed, or bimodal.
 
-## Vignette Info
 
-Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
+## Association Test Example
 
-## Styles
+### Model
+The RobKAT procedure is based on the model $Y_i = X_i \beta + h(Z_i) + e_i$, where $(Y_i, X_i, Z_i)$ represents the response, covariates, and genetic marker data from individual $i$. The function $h$ is a general function of the genetic markers, which is possibly nonparametric in nature. The function of RobKAT is to test for an overall genetic marker effect $H_0: h(Z_i) = 0$
 
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
 
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
-
-## Figures
-
-The figure sizes have been customised so that you can easily put two images side-by-side. 
+### Data
+For the purposes of this example, we first generate a data set for our analysis. 
 
 ```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
+# Load R package
+library(RobKAT)
+
+# Function to simulate data
+gen.data <- function(n,p,q,c,data_type, theta=0.9, h){
+  bet = rep(1, q) #params for parametric effects
+  
+  Z <- matrix(sample(0:2, n*p, replace = T), ncol=p) # pretending to be SNP data
+  X <- matrix(rnorm(n*q),n,q) # some other covariates
+  
+  if(data_type == "t3"){
+    e <- rt(n, 3)
+  }
+  else if(data_type == "chi"){
+    e <- rchisq(n, 1) - 1 
+  }
+  else if(data_type == "normal"){
+    e <- rnorm(n, 0, 1)
+  }
+  else if(data_type == "mixture"){
+    prob <- runif(n, 0, 1)
+    e <- (prob <= theta)*rnorm(n, 0, 1) + (prob > theta)*rnorm(n, 10, 1) - (1-theta)*10
+  }
+  else if(data_type == "cauchy"){
+    e <- rcauchy(n) 
+  }
+  
+  Y <- X%*%bet + c*rowSums(Z) + e 
+  
+  list(X=X, Y=Y, Z=Z)
+}
+
+# generate data set
+robkat.data <- gen.data(n=100, p = 5, q = 2, c = 0.5, data_type = "chi", h = h.linear)
 ```
 
-You can enable figure captions by `fig_caption: yes` in YAML:
 
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
+Now, let's explore the properties of the data set that we have generated. For RobKAT, we use 3 pieces of data:
 
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+1. Y: a vector of responses for each of n individuals
+1. Z: an nxp matrix of SNPs where p represents the size of the SNP set being analyzed. $Z_{ij}$ denotes the number of minor alleles for individual $i$ on SNP $j$. If for any column the major allele is being counted (ie: ${2(num.0) + (num.1)} > {(num.1) + 2(num.2)} \Rightarrow$ number.a > number.A), RobKAT will automatically correct the numbering to count the number of minor alleles. The matrix Z cannot contain any missing values nor values other than 0, 1, 2.
+1. X: an nxq matrix of covariate information, where q represents the number of covariates. Covariates may be continuous or discrete. X may be omitted if desired. 
 
-## More Examples
+### Kernel Function
+The choice of kernel function is linked to the form of $h(Z_i)$. The choice of a linear kernel corresponds to a test statistic derived from a model with $h(Z_i) = Z_i \gamma$. The choice of a quadratic kernel corresponds to a statistic derived from a model with $h(Z_i) = \sum_{j<k} Z_{ij}Z_{ik}\gamma_{jk} + \sum_{j=1}^p Z_{ij}^2\gamma_{2j}$. 
 
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
 
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
+The kernel function itself is a function $k(Z_i, Z_j)$ that defines the similarity between the genetic markers of individuals $i$ and $j$. This may be more intuitive to specify than specific forms of $h(Z_i)$, especially for complex or nonparametric forms. For example, the IBS kernel is defined by $k(Z_i, Z_j) = \frac{1}{2p}\sum_{k=1}^p [2I\{Z_{ik} = Z_{jk}\} + I\{|Z_{ik} - Z_{jk}| = 1\}]$ or the proportion of alleles shared between individuals $i$ and $j$. Additionally, the linear kernel function is $k(Z_i, Z_j) = Z_i^T Z_j$ and the quadratic kernel function is $k(Z_i, Z_j) = (Z_i^T Z_j)^2$. The kernel matrix $K$ has entries defined by $k(Z_i, Z_j)$ and is incorporated into the RobKAT test statistic $T = w^T K w$. 
+
+
+RobKAT supports three choices of kernel function: "linear", "quadratic", and "IBS".
+
+
+### Loss Function Options
+The loss function used in the association tests determines how outliers and other residuals affect the fitting of the null model. For example, least squares minimizes the sum of squared residuals, hypothetically leading to a loss.fun of $\psi(x) = 2x$. The minimization of absolute value residual as in quantile regression, hypothetically, would lead to a loss.fun of $\psi(x) = sign(x)$. 
+
+While the methodology is flexible with loss function specification, the RobKAT package accomodates four loss functions options: "huber", "LAD", "bisquare", and "hampel". These are robust loss functions described in further detail below. 
+
+#### Huber Loss
+Huber loss behaves like least squares loss until a cut-off point, $k$, after which the loss behaves like absolute value loss. The default value $k = 1.345$ is chosen for 95% efficiency compared to the least squares estimate when the error distribution is normal. \[\rho(x) = \begin{cases} \frac{1}{2}x^2 & |x|\leq k \\ k(|x|-\frac{k}{2}) & |x| > k \end{cases}\]
+
+\[\psi(x) = \begin{cases} x & |x|\leq k \\ k(sign(x)) & |x| > k \end{cases}\]
+```{r, fig.show='hold', echo = FALSE}
+par(mfrow = c(1,1))
+curve(huberPsiF, -5, 5, main = "Huber Loss Function")
 ```
 
-Also a quote using `>`:
 
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
+#### LAD Loss
+Least absolute deviation loss (LAD) is defined as $\psi(x) = sign(x)/2$, and represents the subgradient of $\rho(x) = |x|$. When LAD loss is specified in RobKAT, the null model is fit with quantile regression methods for inference on the median. This loss function is robust to outliers in that residuals of differing magnitudes and equal sign are weighted equally. Using this loss function in RobKAT is equivalent to implementing the quantile regression kernel machine (QRKM) methodology. 
+
+```{r, fig.show='hold', echo = FALSE}
+par(mfrow = c(1,1))
+curve(LADPsiF, -5, 5, main = "Huber Loss Function")
+```
+
+#### Bisquare Loss
+Tukey's Bisquare Loss is a redescending loss function, meaning that the function decreases to zero for some input value. The Bisquare family of loss functions is defined by: $\psi(x) = x\bigg(1-(\frac{x}{k})^2\bigg)^2 I_{\{|x|\leq k\}}$ and setting $k = 4.685$ for $95\%$ efficiency to the normal. 
+
+```{r, fig.show='hold', echo = FALSE}
+par(mfrow = c(1,1))
+curve(bisquarePsiF, -5, 5, main = "Bisquare Loss Function")
+```
+
+When using bisquare loss, one should note the word of caution regarding redescending loss functions. 
+
+#### Hampel Loss
+Hampel loss is a redescending loss function, meaning that the function decreases to zero for some input value. The Hampel family of loss functions is defined by: 
+
+\[\psi(x) = \begin{cases} x &  |x|\leq a \\ a \text{ sign}(x) &  a < |x| \leq b \\ a \text{ sign}(x)\frac{r-|x|}{r-b} & b < |x| \leq r \\ 0 & r < |x| \end{cases}\]
+
+The default values of $a=1.353, b=3.157, r=7.216$ are chosen for $95\%$ efficiency compared to the least squares estimate when the error distribution is normal.
+
+```{r, fig.show='hold', echo = FALSE}
+par(mfrow = c(1,1))
+curve(hampelPsiF, -5, 5, main = "Hampel Loss Function")
+```
+
+__Regarding Redescending Loss Functions with RobKAT:__ When using redescending loss functions with RobKAT, caution must be taken when notably large effect sizes are present. Simulation studies have shown that with increasing effect size in $h(Z_i)$, power curves increase to 1 then eventually begin decreasing again when redescending loss functions are used. With small to moderate effect sizes in simulation studies, however, redescending loss functions have shown greater power that alternative methods. While the RobKAT methodology was designed for non-decreasing psi functions, type I error remains controlled and tests are valid. See the RobKAT paper for further details and simulation studies involving the bisquare and hampel loss functions. 
+
+
+## Running RobKAT
+```{r, fig.show='hold'}
+
+robkat(Y = robkat.data$Y, Z = robkat.data$Z, X = robkat.data$X, kernel.fun = "linear", loss.fun = "huber", silent = TRUE)
+```
+
+RobKAT outputs a single numeric value, which is the p-value for the hypothesis test of no overall genetic marker effect on the response ($H_0: h(Z_i) = 0$ vs. $H_a: h(Z_i) \neq 0$). 
+

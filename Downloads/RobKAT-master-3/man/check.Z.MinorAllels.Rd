@@ -8,7 +8,7 @@
 check.Z.MinorAllels(Z, silent = FALSE)
 }
 \arguments{
-\item{\code{Z}}{An nxM matrix of genetic covariates to be tested. Each column
+\item{\code{Z}}{An nxp matrix of genetic covariates to be tested. Each column
 corresponds to one SNP.}
 
 \item{\code{silent}}{Whether to print a warning if genotypes are flipped}
@@ -22,4 +22,10 @@ For each column of \code{Z}, we compute [2*(# of 2's) +
              (# of 1's)] and  [2*(# of 0's) + (# of 1's)]. If the former
              is smaller than the latter quantity, the MAF is correct. Otherwise,
              genotypes of that column are exchanged (0 -> 2 and 2 -> 0)
+}
+\examples{
+n <- 100 #sample size
+p <- 5 #no. of SNPs variables
+Z <- matrix(sample(0:2, n*p, replace = T), ncol=p) # pretending to be SNP data
+Znew <- check.Z.MinorAllels(Z, silent = FALSE)
 }

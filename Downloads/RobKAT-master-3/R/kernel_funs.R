@@ -19,10 +19,11 @@
 
 #' Compute the linear kernel
 #'
-#' @param \code{Z} A SNP matrix of size \code{n x M}. Here \code{n} is the
-#'                   number of subjects and \code{M} is the number of SNPs. Each
+#' @param \code{Z} A SNP matrix of size \code{n x p}. Here \code{n} is the
+#'                   number of subjects and \code{p} is the number of SNPs. Each
 #'                   entry of \code{Z} should be 0, 1 or 2 denoting the minor
 #'                   allele frequency.
+#' @export
 linearKernel = function(Z){
   Z %*% t(Z)
 }
@@ -33,6 +34,7 @@ linearKernel = function(Z){
 #'                   number of subjects and \code{M} is the number of SNPs. Each
 #'                   entry of \code{Z} should be 0, 1 or 2 denoting the minor
 #'                   allele frequency.
+#' @export
 quadraticKernel = function(Z){
   (1 + Z %*% t(Z))^2
 }

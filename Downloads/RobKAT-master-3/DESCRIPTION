@@ -8,7 +8,7 @@ Description: This package implements various robust kernel machine association
 				association tests may drastically lose power. In contarst, robust kernel 
 				association tests allows for non-normal errors including heavy-tailed, skewed 
 				and bimodal distributions.
-Depends: R (>= 3.4.1)
+Depends: R (>= 3.3.0)
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
