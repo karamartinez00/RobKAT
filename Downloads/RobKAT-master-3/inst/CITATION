@@ -1,0 +1,19 @@
+citHeader("To cite RobKAT in publications use:")
+
+citEntry(entry = "Article",
+  title        = "Title",
+  author       = personList(as.person("Arnab Maity"),
+                   as.person("Second Person"), as.person("Third Person")),
+  journal      = "Journal",
+  year         = "20XX",
+  volume       = "YY",
+  number       = "Z",
+  pages        = "AA--BB",
+  url          = "URL",
+
+  textVersion  =
+  paste("Author List (20XX).",
+        "Title.",
+        "Journal, YY(Z), AA-BB.",
+        "URL url-link")
+)

@@ -1,0 +1,24 @@
+Package: RobKAT
+Title: Robust Kernel Association Testing
+Version: 0.0.0.9000
+Authors@R: person("Arnab", "Maity", email = "amaity@ncsu.edu", role = c("aut", "cre"))
+Description: This package implements various robust kernel machine association
+				test procedures. Standard kernel association tests often assume that the 
+				errors are normaly distributed. When this assumption is not satisfied, standard
+				association tests may drastically lose power. In contarst, robust kernel 
+				association tests allows for non-normal errors including heavy-tailed, skewed 
+				and bimodal distributions.
+Depends: R (>= 3.4.1)
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Imports: quantreg,
+    MASS,
+    PearsonDS,
+    Rcpp
+RoxygenNote: 6.0.1.9000
+Suggests: knitr,
+    rmarkdown,
+    testthat
+VignetteBuilder: knitr
+LinkingTo: Rcpp
